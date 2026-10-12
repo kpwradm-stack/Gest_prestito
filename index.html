@@ -1,226 +1,250 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LoanFlow - Gestione Prestiti</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LoanFlow - Gestione Prestito</title>
+  <!-- Tailwind CSS per la grafica dark/neon -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js per il grafico a ciambella/contachilometri -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    .glass-card {
+      background: rgba(17, 24, 39, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 1rem;
+    }
+    .neon-text-cyan {
+      text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+    }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col">
+<body class="min-h-screen p-4 md:p-8">
 
+  <div class="max-w-4xl mx-auto space-y-6">
+    
     <!-- Header -->
-    <header class="bg-slate-900 border-b border-slate-800 shadow-md">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <i class="fa-solid fa-wallet text-indigo-400 text-2xl"></i>
-                <h1 class="text-xl font-bold tracking-wide text-white">LoanFlow Manager</h1>
-            </div>
-            <button id="refreshBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-2 transition">
-                <i class="fa-solid fa-rotate-right" id="refreshIcon"></i> Aggiorna
-            </button>
-        </div>
+    <header class="glass-card p-6 flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-cyan-400 neon-text-cyan">LoanFlow Dashboard</h1>
+        <p class="text-xs text-slate-400">Monitoraggio e rientro prestito in tempo reale</p>
+      </div>
+      <button onclick="fetchData()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold rounded-lg shadow transition">
+        🔄 Aggiorna
+      </button>
     </header>
 
-    <!-- Main Container -->
-    <main class="max-w-7xl mx-auto px-4 py-8 flex-grow w-full grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        <!-- Colonna Sinistra: Dashboard e KPI -->
-        <div class="lg:col-span-1 space-y-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-lg">
-                <h2 class="text-lg font-bold text-slate-200">Riepilogo Prestito</h2>
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="glass-card p-5">
+        <span class="text-xs font-medium text-slate-400">Totale Prestito</span>
+        <div id="totalePrestito" class="text-2xl font-extrabold text-white mt-1">€ 0,00</div>
+      </div>
+      <div class="glass-card p-5">
+        <span class="text-xs font-medium text-slate-400">Totale Rimborsato</span>
+        <div id="totaleVersato" class="text-2xl font-extrabold text-emerald-400 mt-1">€ 0,00</div>
+      </div>
+      <div class="glass-card p-5">
+        <span class="text-xs font-medium text-slate-400">Rimanente</span>
+        <div id="totaleRimanente" class="text-2xl font-extrabold text-rose-400 mt-1">€ 0,00</div>
+      </div>
+    </div>
 
-                <div class="space-y-4">
-                    <div>
-                        <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Totale da Restituire</p>
-                        <p id="totalLoanDisplay" class="text-2xl font-black text-white">€ 0.00</p>
-                    </div>
-                    <div>
-                        <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Totale Restituito</p>
-                        <p id="totalReturnedDisplay" class="text-2xl font-black text-emerald-400">€ 0.00</p>
-                    </div>
-                    <div>
-                        <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Residuo Rimanente</p>
-                        <p id="totalRemainingDisplay" class="text-xl font-bold text-amber-400">€ 0.00</p>
-                    </div>
-                </div>
+    <!-- Sezione Grafico e ProgressBar -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <!-- Grafico a Ciambella (Contachilometri) -->
+      <div class="glass-card p-6 flex flex-col items-center justify-center relative">
+        <h2 class="text-sm font-semibold text-slate-300 mb-4 w-full text-left">Avanzamento Rientro</h2>
+        <div class="w-48 h-48 relative">
+          <canvas id="gaugeChart"></canvas>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span id="percentageText" class="text-2xl font-black text-cyan-400">0%</span>
+            <span class="text-[10px] text-slate-400 uppercase tracking-widest">Completato</span>
+          </div>
+        </div>
+      </div>
 
-                <!-- Grafico a Torta -->
-                <div class="pt-4 border-t border-slate-800">
-                    <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-3 text-center">Progresso Restituzione</p>
-                    <div class="relative w-48 h-48 mx-auto">
-                        <canvas id="loanChart"></canvas>
-                    </div>
-                </div>
-            </div>
+      <!-- Barra di progresso e Dettagli Tipo -->
+      <div class="glass-card p-6 flex flex-col justify-between">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-300 mb-2">Obiettivo Rientro</h2>
+          <div class="w-full bg-slate-800 h-4 rounded-full overflow-hidden p-0.5 border border-slate-700">
+            <div id="progressBar" class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
         </div>
 
-        <!-- Colonna Destra: Elenco Versamenti -->
-        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col h-full shadow-lg">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-lg font-bold text-slate-200">Elenco Versamenti Effettuati</h2>
-                <span id="paymentCount" class="text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-full">0 transazioni</span>
-            </div>
-
-            <div class="overflow-x-auto flex-grow">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="border-b border-slate-800 text-xs uppercase text-slate-400 font-semibold">
-                            <th class="py-3 px-4">Data</th>
-                            <th class="py-3 px-4">Importo</th>
-                            <th class="py-3 px-4">Tipo</th>
-                        </tr>
-                    </thead>
-                    <tbody id="paymentsTableBody" class="divide-y divide-slate-800 text-sm">
-                        <!-- Inserito dinamicamente via JS -->
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Loading & Error States -->
-            <div id="loadingState" class="text-center py-12 text-slate-400">
-                <i class="fa-solid fa-spinner fa-spin text-3xl mb-2 text-indigo-400"></i>
-                <p class="text-sm">Caricamento dati dal foglio in corso...</p>
-            </div>
-            <div id="emptyState" class="hidden text-center py-12 text-slate-500">
-                <i class="fa-regular fa-folder-open text-4xl mb-2"></i>
-                <p class="text-sm">Nessun versamento trovato.</p>
-            </div>
+        <div class="mt-6 space-y-2">
+          <h3 class="text-xs font-semibold text-slate-400 uppercase">Ripartizione per Metodo</h3>
+          <div id="metodiList" class="space-y-1.5 text-xs text-slate-300">
+            <!-- Dinamico -->
+          </div>
         </div>
-    </main>
+      </div>
 
-    <!-- Footer -->
-    <footer class="bg-slate-900 border-t border-slate-800 py-4 text-center text-xs text-slate-500 mt-auto">
-        LoanFlow Application &copy; 2026 - Collegato a Google Fogli
-    </footer>
+    </div>
 
-    <!-- Script Logica Applicativa -->
-    <script>
-        // ID del tuo Google Fogli
-        const SHEET_ID = "1wbHUWrh8xFj2pgptrQCqpBjR_RorKPVsopfODugHkug";
+    <!-- Tabella Storico Versamenti -->
+    <div class="glass-card p-6">
+      <h2 class="text-sm font-semibold text-slate-300 mb-4">Storico Movimenti</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="text-slate-400 border-b border-slate-700 uppercase">
+            <tr>
+              <th class="pb-2">Data</th>
+              <th class="pb-2">Tipo</th>
+              <th class="pb-2 text-right">Importo</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-800 text-slate-200">
+            <!-- Righe inserite via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ID del tuo Google Sheet
+    const SHEET_ID = "1wbHUWrh8xFj2pgptrQCqpBjR_RorKPVsopfODugHkug";
+    const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
+
+    let myChart = null;
+
+    function cleanNumber(val) {
+      if (!val) return 0;
+      // Rimuove virgolette, spazi e corregge eventuali doppi punti
+      let str = val.toString().replace(/"/g, '').trim();
+      // Gestione del formato italiano es. 250,00 -> 250.00
+      str = str.replace(',', '.');
+      // Rimuove eventuali punti multipli creati per errore
+      const parts = str.split('.');
+      if (parts.length > 2) {
+        str = parts[0] + '.' + parts.slice(1).join('');
+      }
+      const num = parseFloat(str);
+      return isNaN(num) ? 0 : num;
+    }
+
+    function formatEuro(val) {
+      return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(val);
+    }
+
+    async function fetchData() {
+      try {
+        const response = await fetch(SHEET_URL);
+        const csvText = await response.text();
         
-        const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+        // Parse CSV
+        const rows = csvText.split('\n').map(row => row.split(',').map(cell => cell.replace(/^"|"\$/g, '').trim()));
+        
+        let totalePrestito = 0;
+        let totaleVersato = 0;
+        const versamenti = [];
+        const tipiMap = {};
 
-        let appState = {
-            totalLoan: 0,
-            payments: []
-        };
+        // Lettura righe (escludendo la riga d'intestazione)
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row || row.length < 3) continue;
 
-        const totalLoanDisplay = document.getElementById('totalLoanDisplay');
-        const totalReturnedDisplay = document.getElementById('totalReturnedDisplay');
-        const totalRemainingDisplay = document.getElementById('totalRemainingDisplay');
-        const paymentsTableBody = document.getElementById('paymentsTableBody');
-        const paymentCount = document.getElementById('paymentCount');
-        const loadingState = document.getElementById('loadingState');
-        const emptyState = document.getElementById('emptyState');
-        const refreshBtn = document.getElementById('refreshBtn');
-        const refreshIcon = document.getElementById('refreshIcon');
+          const dataVal = row[0];
+          const importoVal = cleanNumber(row[1]);
+          const tipoVal = row[2] || 'Altro';
+          const prestitoVal = cleanNumber(row[3]);
 
-        const ctx = document.getElementById('loanChart').getContext('2d');
-        let loanChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Restituito', 'Rimanente'],
-                datasets: [{
-                    data: [0, 0],
-                    backgroundColor: ['#10b981', '#334155'],
-                    borderWidth: 0,
-                    cutout: '75%'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { boxWidth: 12, color: '#cbd5e1', font: { size: 11, family: 'sans-serif' } }
-                    }
-                }
-            }
+          // Cattura il totale prestito dalla prima riga utile nella colonna D
+          if (prestitoVal > 0 && totalePrestito === 0) {
+            totalePrestito = prestitoVal;
+          }
+
+          if (importoVal > 0) {
+            totaleVersato += importoVal;
+            versamenti.push({ data: dataVal, importo: importoVal, tipo: tipoVal });
+            tipiMap[tipoVal] = (tipiMap[tipoVal] || 0) + importoVal;
+          }
+        }
+
+        const rimanente = Math.max(0, totalePrestito - totaleVersato);
+        const percentuale = totalePrestito > 0 ? Math.min(100, (totaleVersato / totalePrestito) * 100) : 0;
+
+        // Aggiorna KPI
+        document.getElementById('totalePrestito').innerText = formatEuro(totalePrestito);
+        document.getElementById('totaleVersato').innerText = formatEuro(totaleVersato);
+        document.getElementById('totaleRimanente').innerText = formatEuro(rimanente);
+        document.getElementById('percentageText').innerText = `${percentuale.toFixed(1)}%`;
+        document.getElementById('progressBar').style.width = `${percentuale}%`;
+
+        // Tabella movimenti
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        versamenti.reverse().forEach(v => {
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-800/50">
+              <td class="py-2.5">${v.data}</td>
+              <td class="py-2.5"><span class="px-2 py-0.5 bg-slate-800 text-cyan-300 rounded text-[10px]">${v.tipo}</span></td>
+              <td class="py-2.5 text-right font-semibold text-emerald-400">${formatEuro(v.importo)}</td>
+            </tr>
+          `;
         });
 
-        async function fetchSheetData() {
-            refreshIcon.classList.add('fa-spin');
-            loadingState.classList.remove('hidden');
-            
-            try {
-                const response = await fetch(SHEET_URL);
-                const text = await response.text();
-                const json = JSON.parse(text.substr(47).slice(0, -2));
-                const rows = json.table.rows;
+        // Lista metodi
+        const metodiList = document.getElementById('metodiList');
+        metodiList.innerHTML = '';
+        Object.entries(tipiMap).forEach(([tipo, val]) => {
+          metodiList.innerHTML += `
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">${tipo}</span>
+              <span class="font-medium text-slate-200">${formatEuro(val)}</span>
+            </div>
+          `;
+        });
 
-                if (rows.length > 0) {
-                    const totalFromSheet = rows[0].c[3] ? parseFloat(rows[0].c[3].v) : 0;
-                    appState.totalLoan = totalFromSheet;
+        // Render Grafico a Ciambella
+        updateChart(totaleVersato, rimanente);
 
-                    appState.payments = [];
-                    rows.forEach(row => {
-                        const date = row.c[0] ? row.c[0].f || row.c[0].v : '';
-                        const amount = row.c[1] ? parseFloat(row.c[1].v) : 0;
-                        const type = row.c[2] ? row.c[2].v : 'Altro';
+      } catch (err) {
+        console.error("Errore caricamento dati:", err);
+      }
+    }
 
-                        if (amount > 0) {
-                            appState.payments.push({ date, amount, type });
-                        }
-                    });
-                }
-                
-                loadingState.classList.add('hidden');
-                updateUI();
-            } catch (error) {
-                console.error("Errore nel recupero dati:", error);
-                loadingState.innerHTML = `<p class="text-rose-400 font-semibold">Errore nel caricamento dei dati.</p><p class="text-xs text-slate-400 mt-1">Verifica che la condivisione del foglio sia impostata su "Chiunque abbia il link può leggere".</p>`;
-            } finally {
-                refreshIcon.classList.remove('fa-spin');
-            }
+    function updateChart(versato, rimanente) {
+      const ctx = document.getElementById('gaugeChart').getContext('2d');
+      if (myChart) myChart.destroy();
+
+      myChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Versato', 'Rimanente'],
+          datasets: [{
+            data: [versato, rimanente],
+            backgroundColor: ['#10b981', '#334155'],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          cutout: '80%',
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: true }
+          },
+          responsive: true,
+          maintainAspectRatio: false
         }
+       Cosa: {}
+      });
+    }
 
-        function updateUI() {
-            const totalReturned = appState.payments.reduce((acc, curr) => acc + Number(curr.amount), 0);
-            const totalRemaining = Math.max(0, appState.totalLoan - totalReturned);
-            const percentage = appState.totalLoan > 0 ? Math.min(100, (totalReturned / appState.totalLoan) * 100) : 0;
-
-            totalLoanDisplay.textContent = `€ ${appState.totalLoan.toFixed(2)}`;
-            totalReturnedDisplay.textContent = `€ ${totalReturned.toFixed(2)} (${percentage.toFixed(1)}%)`;
-            totalRemainingDisplay.textContent = `€ ${totalRemaining.toFixed(2)}`;
-            paymentCount.textContent = `${appState.payments.length} transazioni`;
-
-            loanChart.data.datasets[0].data = [totalReturned, totalRemaining];
-            loanChart.update();
-
-            paymentsTableBody.innerHTML = '';
-            if (appState.payments.length === 0) {
-                emptyState.classList.remove('hidden');
-            } else {
-                emptyState.classList.add('hidden');
-                appState.payments.forEach(p => {
-                    const row = document.createElement('tr');
-                    row.className = "hover:bg-slate-800/50 transition";
-                    
-                    let badgeColor = "bg-slate-800 text-slate-300 border border-slate-700";
-                    if (p.type === 'Bonifico') badgeColor = "bg-blue-950 text-blue-300 border border-blue-800";
-                    if (p.type === 'Satispay') badgeColor = "bg-purple-950 text-purple-300 border border-purple-800";
-                    if (p.type === 'Contante') badgeColor = "bg-emerald-950 text-emerald-300 border border-emerald-800";
-
-                    row.innerHTML = `
-                        <td class="py-3 px-4 font-medium text-slate-300">${p.date}</td>
-                        <td class="py-3 px-4 font-bold text-white">€ ${Number(p.amount).toFixed(2)}</td>
-                        <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${badgeColor}">${p.type}</span></td>
-                    `;
-                    paymentsTableBody.appendChild(row);
-                });
-            }
-        }
-
-        refreshBtn.addEventListener('click', fetchSheetData);
-
-        // Caricamento iniziale
-        fetchSheetData();
-    </script>
+    // Carica al primo avvio
+    fetchData();
+  </script>
 </body>
 </html>
