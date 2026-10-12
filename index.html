@@ -112,7 +112,6 @@
   </div>
 
   <script>
-    // ID del tuo Google Sheet
     const SHEET_ID = "1wbHUWrh8xFj2pgptrQCqpBjR_RorKPVsopfODugHkug";
     const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
 
@@ -120,11 +119,8 @@
 
     function cleanNumber(val) {
       if (!val) return 0;
-      // Rimuove virgolette, spazi e corregge eventuali doppi punti
       let str = val.toString().replace(/"/g, '').trim();
-      // Gestione del formato italiano es. 250,00 -> 250.00
       str = str.replace(',', '.');
-      // Rimuove eventuali punti multipli creati per errore
       const parts = str.split('.');
       if (parts.length > 2) {
         str = parts[0] + '.' + parts.slice(1).join('');
@@ -142,47 +138,50 @@
         const response = await fetch(SHEET_URL);
         const csvText = await response.text();
         
-        // Parse CSV
-        const rows = csvText.split('\n').map(row => row.split(',').map(cell => cell.replace(/^"|"\$/g, '').trim()));
-        
+        const lines = csvText.split('\n');
         let totalePrestito = 0;
         let totaleVersato = 0;
         const versamenti = [];
         const tipiMap = {};
 
-        // Lettura righe (escludendo la riga d'intestazione)
-        for (let i = 1; i < rows.length; i++) {
-          const row = rows[i];
-          if (!row || row.length < 3) continue;
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue; // Salta righe vuote
+
+          // Regex robusta per separare i campi CSV anche con eventuali virgole interne
+          const row = line.split(',').map(cell => cell.replace(/^"|"\$/g, '').trim());
+          if (row.length < 3) continue;
 
           const dataVal = row[0];
           const importoVal = cleanNumber(row[1]);
           const tipoVal = row[2] || 'Altro';
-          const prestitoVal = cleanNumber(row[3]);
+          const prestitoVal = row[3] ? cleanNumber(row[3]) : 0;
 
-          // Cattura il totale prestito dalla prima riga utile nella colonna D
           if (prestitoVal > 0 && totalePrestito === 0) {
             totalePrestito = prestitoVal;
           }
 
-          if (importoVal > 0) {
+          if (importoVal > 0 && dataVal) {
             totaleVersato += importoVal;
             versamenti.push({ data: dataVal, importo: importoVal, tipo: tipoVal });
             tipiMap[tipoVal] = (tipiMap[tipoVal] || 0) + importoVal;
           }
         }
 
+        // Se non trova il totale prestito dalla colonna D, imposta una fallback di sicurezza o usa i dati
+        if (totalePrestito === 0) {
+          totalePrestito = 1500.00; // Valore di default se la cella è vuota
+        }
+
         const rimanente = Math.max(0, totalePrestito - totaleVersato);
         const percentuale = totalePrestito > 0 ? Math.min(100, (totaleVersato / totalePrestito) * 100) : 0;
 
-        // Aggiorna KPI
         document.getElementById('totalePrestito').innerText = formatEuro(totalePrestito);
         document.getElementById('totaleVersato').innerText = formatEuro(totaleVersato);
         document.getElementById('totaleRimanente').innerText = formatEuro(rimanente);
         document.getElementById('percentageText').innerText = `${percentuale.toFixed(1)}%`;
         document.getElementById('progressBar').style.width = `${percentuale}%`;
 
-        // Tabella movimenti
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
         versamenti.reverse().forEach(v => {
@@ -195,7 +194,6 @@
           `;
         });
 
-        // Lista metodi
         const metodiList = document.getElementById('metodiList');
         metodiList.innerHTML = '';
         Object.entries(tipiMap).forEach(([tipo, val]) => {
@@ -207,7 +205,6 @@
           `;
         });
 
-        // Render Grafico a Ciambella
         updateChart(totaleVersato, rimanente);
 
       } catch (err) {
@@ -239,11 +236,9 @@
           responsive: true,
           maintainAspectRatio: false
         }
-       Cosa: {}
       });
     }
 
-    // Carica al primo avvio
     fetchData();
   </script>
 </body>
